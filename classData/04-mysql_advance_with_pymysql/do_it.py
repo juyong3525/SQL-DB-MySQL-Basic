@@ -15,6 +15,19 @@ def get_items(html, category_name, sub_category_name):
         dis_price = item.select_one('div.s-price strong span')
         discount_percent = item.select_one('div.s-price em')
 
+        if ori_price == None or ori_price.get_text() == '':
+            ori_price = dis_price
+
+        ori_price = ori_price.get_text().replace(',', '').replace('원', '')
+        dis_price = dis_price.get_text().replace(',', '').replace('원', '')
+
+        if discount_percent == None or discount_percent.get_text() == '':
+            discount_percent = 0
+        else:
+            discount_percent = discount_percent.get_text().replace('%', '')
+
+        print(ranking, title.get_text(), ori_price, dis_price, discount_percent)
+
 
 # main/sub category 정보 가져오기
 def get_category(category_link, category_name):
@@ -22,11 +35,12 @@ def get_category(category_link, category_name):
     res = requests.get(category_link)
     soup = BeautifulSoup(res.content, 'html.parser')
 
+    get_items(soup, category_name, "ALL")
+
     sub_categories = soup.select('div.cate-l div.navi.group ul li a')
-    for sub_category in sub_categories:
-        # print(category_link, category_name, sub_category.get_text(), 'http://corners.gmarket.co.kr/' +
-        #       sub_category['href'])
-        get_items(soup, category_name, sub_category.get_text())
+    # for sub_category in sub_categories:
+    #   print(category_link, category_name, sub_category.get_text(), 'http://corners.gmarket.co.kr/' +
+    #   sub_category['href'])
 
 
 # main 카테고리 가져오기
