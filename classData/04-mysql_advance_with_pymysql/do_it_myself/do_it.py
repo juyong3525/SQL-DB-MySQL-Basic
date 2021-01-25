@@ -1,6 +1,34 @@
 import requests
 from bs4 import BeautifulSoup
-import pymysql
+from db_management import cursor_execute, db_commit, db_close, overlap_check
+
+
+def save_data(item_info):
+    count_sql = f"""SELECT COUNT(*) FROM items WHERE item_code = '{item_info['item_code']}';"""
+    overlap_num = overlap_check(count_sql)
+    if overlap_num == 0:
+        items_sql = f"""INSERT INTO items VALUES(
+            '{item_info['item_code']}',
+            '{item_info['title']}',
+            {item_info['ori_price']},
+            {item_info['dis_price']},
+            {item_info['discount_percent']},
+            '{item_info['provider']}'
+        )
+        """
+        print(items_sql)
+        cursor_execute(items_sql)
+
+    ranking_sql = f"""INSERT INTO ranking (main_category, sub_category, item_ranking, item_code) VALUES(
+    '{item_info['category_name']}',
+    '{item_info['sub_category_name']}', 
+    '{str(item_info['ranking'])}', 
+    '{item_info['item_code']}'
+    )"""
+    print(ranking_sql)
+    cursor_execute(ranking_sql)
+
+    db_commit()
 
 
 # 상품 정보 가져오기
@@ -55,7 +83,7 @@ def get_items(html, category_name, sub_category_name):
         data_dict['item_code'] = item_code
         data_dict['provider'] = provider
 
-        # print(data_dict)
+        save_data(data_dict)
 
         # print(category_name, sub_category_name, ranking, item_code, provider, title.get_text(), ori_price, dis_price, discount_percent)
 
@@ -75,45 +103,16 @@ def get_category(category_link, category_name):
         get_items(soup, category_name, sub_category.get_text())
 
 
-# DB 연결
-host_name = 'localhost'
-username = 'root'
-password = 'killerqueen3525'    # git에 push하지 말 것
-database_name = 'bestproducts'
-
-db = pymysql.connect(
-    host=host_name,
-    user=username,
-    passwd=password,
-    db=database_name,
-)
-cursor = db.cursor()
-
-item_info = {'category_name': 'ALL', 'sub_category_name': 'ALL', 'ranking': 1, 'title': '아산맑은쌀 삼광 20kg 2020년산 햅쌀',
-             'ori_price': '72500', 'dis_price': '69600', 'discount_percent': '4', 'item_code': '1905025454', 'provider': '이쌀이다'}
-
-sql = f"""INSERT INTO items VALUES(
-    '{item_info['item_code']}',
-    '{item_info['title']}',
-    '{item_info['ori_price']}',
-    '{item_info['dis_price']}',
-    '{item_info['discount_percent']}',
-    '{item_info['provider']}'
-)
-"""
-print(sql)
-cursor.execute(sql)
-
-
 # main 카테고리 가져오기
-res = requests.get('http://corners.gmarket.co.kr/Bestsellers')
-soup = BeautifulSoup(res.content, 'html.parser')
+def main():
+    res = requests.get('http://corners.gmarket.co.kr/Bestsellers')
+    soup = BeautifulSoup(res.content, 'html.parser')
 
-categories = soup.select('div.gbest-cate ul.by-group li a')
-for category in categories:
-    get_category('http://corners.gmarket.co.kr/' +
-                 category['href'], category.get_text())
+    categories = soup.select('div.gbest-cate ul.by-group li a')
+    for category in categories:
+        get_category('http://corners.gmarket.co.kr/' +
+                     category['href'], category.get_text())
 
 
-db.commit()
-db.close()
+main()
+db_close()
