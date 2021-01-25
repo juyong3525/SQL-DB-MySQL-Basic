@@ -21,8 +21,8 @@ def save_data(item_info):
 
     ranking_sql = f"""INSERT INTO ranking (main_category, sub_category, item_ranking, item_code) VALUES(
     '{item_info['category_name']}',
-    '{item_info['sub_category_name']}', 
-    '{str(item_info['ranking'])}', 
+    '{item_info['sub_category_name']}',
+    '{str(item_info['ranking'])}',
     '{item_info['item_code']}'
     )"""
     print(ranking_sql)
