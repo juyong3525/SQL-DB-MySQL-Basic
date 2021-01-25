@@ -1,4 +1,5 @@
 import pymysql
+import pandas as pd
 
 db = pymysql.connect(host='localhost',
                      user='root',
