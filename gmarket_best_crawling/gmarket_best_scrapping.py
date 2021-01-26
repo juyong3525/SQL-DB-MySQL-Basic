@@ -35,19 +35,19 @@ def save_data(item_info):
 
 # 판매 업체 정보 가져오기
 def get_provider(link):
-    res = requests.get(link)
-    if res.status_code == 200:
-        soup = BeautifulSoup(res.content, 'html.parser')
-        provider = soup.select_one(
-            'div.item-topinfo_headline p.shoptit span.text__seller > a')
-        if provider == None:
-            provider = ''
-        else:
-            provider = provider.get_text()
-    else:
-        provider = ''
-
-    return provider
+    try:
+        res = requests.get(link)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.content, 'html.parser')
+            provider = soup.select_one(
+                'div.item-topinfo_headline p.shoptit span.text__seller > a')
+            if provider == None:
+                provider = ''
+            else:
+                provider = provider.get_text()
+            return provider
+    except TimeoutError:
+        pass
 
 
 # 상품 정보 가져오기
@@ -82,6 +82,8 @@ def get_items(html, category_name, sub_category_name):
         item_code = product_link['href'].split('=')[1].split('&')[0]
 
         provider = get_provider(product_link['href'])
+        if provider is None:
+            provider = ''
 
         data_dict['category_name'] = category_name
         data_dict['sub_category_name'] = sub_category_name
@@ -98,32 +100,37 @@ def get_items(html, category_name, sub_category_name):
 
 # main/sub category 정보 가져오기
 def get_category(category_link, category_name):
-    res = requests.get(category_link)
-
-    if res.status_code == 200:
-        soup = BeautifulSoup(res.content, 'html.parser')
-
-        get_items(soup, category_name, "ALL")
-
-        sub_categories = soup.select('div.cate-l div.navi.group ul li > a')
-        for sub_category in sub_categories:
-            res = requests.get(
-                'http://corners.gmarket.co.kr/' + sub_category['href'])
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.content, 'html.parser')
-                get_items(soup, category_name, sub_category.get_text())
+    try:
+        res = requests.get(category_link)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.content, 'html.parser')
+            get_items(soup, category_name, "ALL")
+            sub_categories = soup.select('div.cate-l div.navi.group ul li > a')
+            for sub_category in sub_categories:
+                try:
+                    res = requests.get(
+                        'http://corners.gmarket.co.kr/' + sub_category['href'])
+                    if res.status_code == 200:
+                        soup = BeautifulSoup(res.content, 'html.parser')
+                        get_items(soup, category_name, sub_category.get_text())
+                except TimeoutError:
+                    pass
+    except TimeoutError:
+        pass
 
 
 # main 카테고리 가져오기
 def get_main_category():
-    res = requests.get('http://corners.gmarket.co.kr/Bestsellers')
-
-    if res.status_code == 200:
-        soup = BeautifulSoup(res.content, 'html.parser')
-        categories = soup.select('div.gbest-cate ul.by-group li a')
-        for category in categories:
-            link = 'http://corners.gmarket.co.kr/' + category['href']
-            get_category(link, category.get_text())
+    try:
+        res = requests.get('http://corners.gmarket.co.kr/Bestsellers')
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.content, 'html.parser')
+            categories = soup.select('div.gbest-cate ul.by-group li a')
+            for category in categories:
+                link = 'http://corners.gmarket.co.kr/' + category['href']
+                get_category(link, category.get_text())
+    except TimeoutError:
+        pass
 
 
 # 실행 함수
