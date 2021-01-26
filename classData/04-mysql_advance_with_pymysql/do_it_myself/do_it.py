@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from db_management import cursor_execute, db_commit, db_close, overlap_check
 
 
+# db에 저장하기
 def save_data(item_info):
     count_sql = f"""SELECT COUNT(*) FROM items WHERE item_code = '{item_info['item_code']}';"""
     overlap_num = overlap_check(count_sql)
@@ -16,7 +17,6 @@ def save_data(item_info):
             '{item_info['provider']}'
         )
         """
-        print(items_sql)
         cursor_execute(items_sql)
 
     ranking_sql = f"""INSERT INTO ranking (main_category, sub_category, item_ranking, item_code) VALUES(
@@ -25,16 +25,33 @@ def save_data(item_info):
     '{str(item_info['ranking'])}',
     '{item_info['item_code']}'
     )"""
-    print(ranking_sql)
     cursor_execute(ranking_sql)
 
     db_commit()
+    global commited_num
+    commited_num += 1
+    print(f"{commited_num} commited")
+
+
+# 판매 업체 정보 가져오기
+def get_provider(link):
+    res = requests.get(link)
+    if res.status_code == 200:
+        soup = BeautifulSoup(res.content, 'html.parser')
+        provider = soup.select_one(
+            'div.item-topinfo_headline p.shoptit span.text__seller > a')
+        if provider == None:
+            provider = ''
+        else:
+            provider = provider.get_text()
+    else:
+        provider = ''
+
+    return provider
 
 
 # 상품 정보 가져오기
 def get_items(html, category_name, sub_category_name):
-    items_result_list = list()
-
     best_item = html.select('div.best-list')
     for index, item in enumerate(best_item[1].select('li')):
 
@@ -64,14 +81,7 @@ def get_items(html, category_name, sub_category_name):
         product_link = item.select_one('div.thumb > a')
         item_code = product_link['href'].split('=')[1].split('&')[0]
 
-        res = requests.get(product_link['href'])
-        soup = BeautifulSoup(res.content, 'html.parser')
-        provider = soup.select_one(
-            'div.item-topinfo_headline p.shoptit span.text__seller > a')
-        if provider == None:
-            provider = ''
-        else:
-            provider = provider.get_text()
+        provider = get_provider(product_link['href'])
 
         data_dict['category_name'] = category_name
         data_dict['sub_category_name'] = sub_category_name
@@ -85,34 +95,40 @@ def get_items(html, category_name, sub_category_name):
 
         save_data(data_dict)
 
-        # print(category_name, sub_category_name, ranking, item_code, provider, title.get_text(), ori_price, dis_price, discount_percent)
-
 
 # main/sub category 정보 가져오기
 def get_category(category_link, category_name):
     res = requests.get(category_link)
-    soup = BeautifulSoup(res.content, 'html.parser')
 
-    get_items(soup, category_name, "ALL")
-
-    sub_categories = soup.select('div.cate-l div.navi.group ul li > a')
-    for sub_category in sub_categories:
-        res = requests.get(
-            'http://corners.gmarket.co.kr/' + sub_category['href'])
+    if res.status_code == 200:
         soup = BeautifulSoup(res.content, 'html.parser')
-        get_items(soup, category_name, sub_category.get_text())
+
+        get_items(soup, category_name, "ALL")
+
+        sub_categories = soup.select('div.cate-l div.navi.group ul li > a')
+        for sub_category in sub_categories:
+            res = requests.get(
+                'http://corners.gmarket.co.kr/' + sub_category['href'])
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.content, 'html.parser')
+                get_items(soup, category_name, sub_category.get_text())
 
 
 # main 카테고리 가져오기
-def main():
+def get_main_category():
     res = requests.get('http://corners.gmarket.co.kr/Bestsellers')
-    soup = BeautifulSoup(res.content, 'html.parser')
 
-    categories = soup.select('div.gbest-cate ul.by-group li a')
-    for category in categories:
-        get_category('http://corners.gmarket.co.kr/' +
-                     category['href'], category.get_text())
+    if res.status_code == 200:
+        soup = BeautifulSoup(res.content, 'html.parser')
+        categories = soup.select('div.gbest-cate ul.by-group li a')
+        for category in categories:
+            link = 'http://corners.gmarket.co.kr/' + category['href']
+            get_category(link, category.get_text())
 
 
-main()
-db_close()
+# 실행 함수
+def main():
+    global commited_num
+    commited_num = 0
+    get_main_category()
+    db_close()
