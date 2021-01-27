@@ -46,7 +46,7 @@ def get_provider(link):
             else:
                 provider = provider.get_text()
             return provider
-    except TimeoutError:
+    except:
         pass
 
 
@@ -113,9 +113,9 @@ def get_category(category_link, category_name):
                     if res.status_code == 200:
                         soup = BeautifulSoup(res.content, 'html.parser')
                         get_items(soup, category_name, sub_category.get_text())
-                except TimeoutError:
+                except:
                     pass
-    except TimeoutError:
+    except:
         pass
 
 
@@ -129,7 +129,7 @@ def get_main_category():
             for category in categories:
                 link = 'http://corners.gmarket.co.kr/' + category['href']
                 get_category(link, category.get_text())
-    except TimeoutError:
+    except:
         pass
 
 
